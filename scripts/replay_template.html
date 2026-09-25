@@ -1,0 +1,278 @@
+<title>Fly Dash Replay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #f2f3ef; --panel: #fbfbf8; --ink: #1c2320; --muted: #5d6862; --line: #d6dad2;
+  --sky: #e6ebe6; --ground: #9aa59e; --block: #3b4541; --hazard: #c4314b;
+  --cube: #2f6bd8; --loom: #6b4fd6; --lc4: #1f9e89; --gf: #d98e04; --jump: #2f6bd8;
+  --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121614; --panel: #181d1b; --ink: #e4e8e2; --muted: #9aa49e; --line: #2c3430;
+    --sky: #1b2220; --ground: #56615b; --block: #b9c2bc; --hazard: #f0586f;
+    --cube: #6f9cf0; --loom: #a28cf5; --lc4: #4cc7b2; --gf: #f2b33d; --jump: #6f9cf0;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121614; --panel: #181d1b; --ink: #e4e8e2; --muted: #9aa49e; --line: #2c3430;
+  --sky: #1b2220; --ground: #56615b; --block: #b9c2bc; --hazard: #f0586f;
+  --cube: #6f9cf0; --loom: #a28cf5; --lc4: #4cc7b2; --gf: #f2b33d; --jump: #6f9cf0;
+}
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 48px; display: grid; gap: 22px; }
+h1 { font: 700 clamp(28px, 4.2vw, 40px)/1.1 var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 68ch; }
+.stats { display: flex; flex-wrap: wrap; gap: 10px 28px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.stat b { display: block; font: 500 22px/1.2 var(--mono); color: var(--ink); }
+.stat span { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; }
+.label { font: 500 12px/1.3 var(--mono); color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip, button { font: 500 13px/1 var(--mono); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+button:focus-visible, .chip:focus-visible, input:focus-visible, canvas:focus-visible { outline: 2px solid var(--cube); outline-offset: 2px; }
+#play { min-width: 76px; }
+input[type=range] { flex: 1 1 200px; accent-color: var(--cube); }
+canvas { width: 100%; display: block; border-radius: 6px; }
+#game { aspect-ratio: 16 / 6; background: var(--sky); }
+#minimap { height: 54px; }
+#charts { height: 250px; cursor: pointer; }
+.readout { display: flex; flex-wrap: wrap; gap: 6px 22px; font: 13px/1.4 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--ink); font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 12px/1.4 var(--mono); color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.notes { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.notes p { margin: 0; color: var(--muted); font-size: 14px; }
+.notes strong { color: var(--ink); font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Fly Dash Replay</h1>
+    <p class="lede">A simulated fruit fly brain (FlyWire, 138,639 neurons) plays the first cube section of Stereo Madness in a Python copy of the game. Each obstacle ahead is shown to the fly as a looming object. When its Giant Fiber escape neuron fires, the cube jumps. Nothing here is trained.</p>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <section class="panel" aria-label="Replay">
+    <div class="controls" id="attempts" role="group" aria-label="Attempt"></div>
+    <canvas id="game" width="1600" height="600" aria-label="Game view"></canvas>
+    <div class="controls">
+      <button id="play" type="button">Play</button>
+      <button id="speed" type="button" aria-label="Playback speed">1×</button>
+      <input id="scrub" type="range" min="0" max="1" value="0" aria-label="Time">
+    </div>
+    <div class="readout" id="readout"></div>
+  </section>
+
+  <section class="panel" aria-label="Brain signals">
+    <div class="label">Inside the fly, whole attempt · click to jump there</div>
+    <canvas id="charts" width="2000" height="500" tabindex="0" aria-label="Signal charts"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--loom)"></i>obstacle angle θ</span>
+      <span><i style="background:var(--loom);opacity:.45"></i>LPLC2 drive</span>
+      <span><i style="background:var(--lc4)"></i>LC4 drive</span>
+      <span><i style="background:var(--gf)"></i>Giant Fiber spike</span>
+      <span><i style="background:var(--jump)"></i>jump</span>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="All attempts">
+    <div class="label">Where all attempts ended · section length 266 blocks</div>
+    <canvas id="minimap" width="2000" height="108" aria-label="Death positions"></canvas>
+  </section>
+
+  <section class="notes">
+    <p><strong>Why it dies at 12%.</strong> The second obstacle is a small spike below the fly's eye. Seen from above, a low object stops growing as you close in, so it never looms enough to trigger an escape.</p>
+    <p><strong>Fixed, not tuned.</strong> Looming formula, gain (3 Hz) and motor rule are dino-fly's, frozen before any game. Fly time runs 1:1 with game time.</p>
+    <p><strong>Unverified.</strong> Hitbox sizes and the physics update order are not yet checked against the real game.</p>
+  </section>
+</div>
+
+<script>
+const DATA = __DATA__;
+const $ = (id) => document.getElementById(id);
+const S = DATA.summary;
+const pct = (v) => (v * 100).toFixed(1) + "%";
+$("stats").innerHTML = [
+  [S.attempts, "attempts"], [pct(S.progress_mean), "mean progress"], [pct(S.progress_max), "best"],
+  [pct(DATA.never_jump), "never jumping"], [S.jumps_mean.toFixed(1), "jumps per attempt"],
+].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
+
+let tok = {};
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ["sky", "ground", "block", "hazard", "cube", "loom", "lc4", "gf", "jump", "ink", "muted", "line", "panel"])
+    tok[k] = cs.getPropertyValue("--" + k).trim();
+}
+readTokens();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readTokens(); drawAll(); });
+new MutationObserver(() => { readTokens(); drawAll(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+const vis = DATA.visuals.map(([kind, l, r, b, t]) => ({ kind, l, r, b, t }));
+let cur = 0, frame = 0, playing = false, speedIdx = 2;
+const speeds = [0.25, 0.5, 1, 2];
+const A = () => DATA.traces[cur];
+
+$("attempts").innerHTML = DATA.traces.map((a, i) =>
+  `<button class="chip" type="button" data-i="${i}" aria-pressed="${i === 0}">seed ${a.seed} · ${pct(a.progress)}</button>`).join("");
+$("attempts").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-i]"); if (!b) return;
+  cur = +b.dataset.i; frame = 0;
+  document.querySelectorAll("#attempts .chip").forEach((c) => c.setAttribute("aria-pressed", c === b));
+  $("scrub").max = A().x.length - 1; drawAll();
+});
+
+function viewed(x, y) {
+  const ex = x + 10, ey = y + 8;
+  for (const o of vis) {
+    if (o.l <= ex || o.l > ex + 600) continue;
+    if (o.t > y - 15 && o.b < y + 15) return { o, ex, ey };
+  }
+  return null;
+}
+
+function drawGame() {
+  const cv = $("game"), g = cv.getContext("2d"), W = cv.width, H = cv.height, a = A();
+  const x = a.x[frame], y = a.y[frame];
+  const s = W / 720, x0 = x - 150, yBase = H - 70;
+  const X = (v) => (v - x0) * s, Y = (v) => yBase - v * s;
+  g.fillStyle = tok.sky; g.fillRect(0, 0, W, H);
+  g.fillStyle = tok.ground; g.fillRect(0, yBase, W, H - yBase);
+  for (const o of vis) {
+    if (o.r < x0 || o.l > x0 + 720) continue;
+    if (o.kind === "solid") { g.fillStyle = tok.block; g.fillRect(X(o.l), Y(o.t), (o.r - o.l) * s, (o.t - o.b) * s); continue; }
+    g.fillStyle = tok.hazard;
+    if (o.t - o.b < 13) { // floor spike strip
+      const n = 5, w = (o.r - o.l) / n;
+      g.beginPath();
+      for (let k = 0; k < n; k++) { g.moveTo(X(o.l + k * w), Y(o.b)); g.lineTo(X(o.l + (k + .5) * w), Y(o.t)); g.lineTo(X(o.l + (k + 1) * w), Y(o.b)); }
+      g.fill();
+    } else { g.beginPath(); g.moveTo(X(o.l), Y(o.b)); g.lineTo(X((o.l + o.r) / 2), Y(o.t)); g.lineTo(X(o.r), Y(o.b)); g.fill(); }
+  }
+  const v = viewed(x, y);
+  if (v) {
+    g.fillStyle = tok.loom; g.globalAlpha = 0.16;
+    g.beginPath(); g.moveTo(X(v.ex), Y(v.ey)); g.lineTo(X(v.o.l), Y(v.o.t)); g.lineTo(X(v.o.l), Y(v.o.b)); g.fill();
+    g.globalAlpha = 0.9; g.strokeStyle = tok.loom; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(X(v.ex), Y(v.ey)); g.lineTo(X(v.o.l), Y(v.o.t)); g.moveTo(X(v.ex), Y(v.ey)); g.lineTo(X(v.o.l), Y(v.o.b)); g.stroke();
+    g.globalAlpha = 1;
+  }
+  let flash = 0;
+  for (let k = Math.max(0, frame - 8); k <= frame; k++) if (a.gf[k]) flash = Math.max(flash, 1 - (frame - k) / 9);
+  if (flash) { g.fillStyle = tok.gf; g.globalAlpha = 0.35 * flash; g.beginPath(); g.arc(X(x), Y(y), 46 * s, 0, 7); g.fill(); g.globalAlpha = 1; }
+  g.fillStyle = tok.cube; g.fillRect(X(x - 15), Y(y + 15), 30 * s, 30 * s);
+  g.fillStyle = tok.panel; g.beginPath(); g.arc(X(x + 10), Y(y + 8), 3.2 * s, 0, 7); g.fill();
+  const last = frame === a.x.length - 1;
+  if (last && !a.cleared) {
+    g.fillStyle = tok.ink; g.font = `500 ${22 * s}px IBM Plex Mono, monospace`;
+    g.fillText(`died · ${pct(a.progress)}`, X(x - 15), Y(y + 30));
+  }
+}
+
+function drawCharts() {
+  const cv = $("charts"), g = cv.getContext("2d"), W = cv.width, H = cv.height, a = A(), n = a.x.length;
+  g.clearRect(0, 0, W, H);
+  const padL = 110, padR = 16, rows = [[10, 170], [190, 330], [350, 480]];
+  const X = (i) => padL + (i / Math.max(n - 1, 1)) * (W - padL - padR);
+  g.font = "24px IBM Plex Mono, monospace"; g.textBaseline = "middle";
+  const axis = (r, label, max, unit) => {
+    g.strokeStyle = tok.line; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(padL, r[1]); g.lineTo(W - padR, r[1]); g.stroke();
+    g.fillStyle = tok.muted; g.textAlign = "right";
+    g.fillText(label, padL - 12, (r[0] + r[1]) / 2);
+    if (max != null) { g.fillText(`${max}${unit}`, padL - 12, r[0] + 10); }
+  };
+  const line = (arr, r, max, color, alpha = 1) => {
+    g.strokeStyle = color; g.globalAlpha = alpha; g.lineWidth = 3; g.beginPath();
+    arr.forEach((v, i) => { const yy = r[1] - Math.min(v / max, 1) * (r[1] - r[0]); i ? g.lineTo(X(i), yy) : g.moveTo(X(i), yy); });
+    g.stroke(); g.globalAlpha = 1;
+  };
+  axis(rows[0], "θ", 90, "°");
+  g.setLineDash([8, 8]); g.strokeStyle = tok.muted; g.lineWidth = 1.5;
+  const y42 = rows[0][1] - (42 / 90) * (rows[0][1] - rows[0][0]);
+  g.beginPath(); g.moveTo(padL, y42); g.lineTo(W - padR, y42); g.stroke(); g.setLineDash([]);
+  g.fillStyle = tok.muted; g.textAlign = "left"; g.fillText("42° LPLC2 peak", padL + 8, y42 - 14);
+  line(a.theta, rows[0], 90, tok.loom);
+  axis(rows[1], "drive", 3, " Hz");
+  line(a.lplc2_hz, rows[1], 3, tok.loom, 0.45);
+  line(a.lc4_hz, rows[1], 3, tok.lc4);
+  axis(rows[2], "spikes", null, "");
+  const r = rows[2], mid = (r[0] + r[1]) / 2;
+  for (let i = 0; i < n; i++) {
+    const c = a.lplc2_spk[i] + a.lc4_spk[i];
+    if (c) { g.fillStyle = tok.loom; g.globalAlpha = 0.5; const h = Math.min(c, 12) * 3.5; g.fillRect(X(i) - 1, r[1] - h, 3, h); g.globalAlpha = 1; }
+    if (a.jump[i]) { g.fillStyle = tok.jump; g.fillRect(X(i) - 3, r[0], 6, 26); }
+    if (a.gf[i]) { g.fillStyle = tok.gf; g.beginPath(); g.moveTo(X(i), mid - 22); g.lineTo(X(i) + 11, mid); g.lineTo(X(i), mid + 22); g.lineTo(X(i) - 11, mid); g.fill(); }
+  }
+  g.strokeStyle = tok.ink; g.lineWidth = 2; g.beginPath(); g.moveTo(X(frame), 0); g.lineTo(X(frame), H); g.stroke();
+  g.fillStyle = tok.muted; g.textAlign = "right"; g.fillText(`${(n / 60).toFixed(2)} s`, W - padR, H - 8);
+}
+
+function drawMinimap() {
+  const cv = $("minimap"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const X = (v) => 8 + (v / DATA.end_x) * (W - 16), base = H - 30;
+  for (const o of vis) {
+    g.fillStyle = o.kind === "solid" ? tok.block : tok.hazard; g.globalAlpha = 0.55;
+    g.fillRect(X(o.l), base - Math.min(o.t, 270) / 270 * 40, Math.max(2, X(o.r) - X(o.l)), 3); g.globalAlpha = 1;
+  }
+  g.strokeStyle = tok.line; g.lineWidth = 2; g.beginPath(); g.moveTo(8, base + 4); g.lineTo(W - 8, base + 4); g.stroke();
+  const counts = {};
+  for (const p of DATA.all_progress) { const k = Math.round(p * 1000); counts[k] = (counts[k] || 0) + 1; }
+  for (const [k, c] of Object.entries(counts)) {
+    const xx = X((k / 1000) * DATA.end_x);
+    g.fillStyle = tok.hazard; g.fillRect(xx - 3, base + 8, 6, Math.min(c, 22));
+    g.fillStyle = tok.ink; g.font = "20px IBM Plex Mono, monospace"; g.textAlign = "center"; g.textBaseline = "top";
+    g.fillText(c, xx, base + 8 + Math.min(c, 22) + 1);
+  }
+  const a = A(); g.fillStyle = tok.cube; g.fillRect(X(a.x[frame]) - 2, 0, 4, base + 4);
+}
+
+function readout() {
+  const a = A(), i = frame;
+  $("readout").innerHTML =
+    `<span>t <b>${(i / 60).toFixed(2)} s</b></span><span>progress <b>${pct(Math.min(a.x[i] / DATA.end_x, 1))}</b></span>` +
+    `<span>θ <b>${a.theta[i].toFixed(1)}°</b></span><span>LPLC2 <b>${a.lplc2_hz[i].toFixed(2)} Hz</b></span>` +
+    `<span>LC4 <b>${a.lc4_hz[i].toFixed(2)} Hz</b></span><span>brain spikes this frame <b>${a.brain_spk[i]}</b></span>` +
+    `<span>Giant Fiber <b>${a.gf[i] ? "FIRED" : "quiet"}</b></span>`;
+}
+
+function drawAll() { drawGame(); drawCharts(); drawMinimap(); readout(); $("scrub").value = frame; }
+
+let acc = 0, lastT = 0;
+function tick(t) {
+  if (!playing) return;
+  acc += Math.min(t - lastT, 100) * 0.06 * speeds[speedIdx]; lastT = t;
+  const steps = Math.floor(acc); acc -= steps;
+  if (steps) {
+    frame = Math.min(frame + steps, A().x.length - 1);
+    drawAll();
+    if (frame >= A().x.length - 1) { playing = false; $("play").textContent = "Replay"; return; }
+  }
+  requestAnimationFrame(tick);
+}
+$("play").addEventListener("click", () => {
+  if (frame >= A().x.length - 1) frame = 0;
+  playing = !playing; $("play").textContent = playing ? "Pause" : "Play";
+  if (playing) { lastT = performance.now(); requestAnimationFrame(tick); }
+});
+$("speed").addEventListener("click", () => { speedIdx = (speedIdx + 1) % speeds.length; $("speed").textContent = speeds[speedIdx] + "×"; });
+$("scrub").addEventListener("input", (e) => { frame = +e.target.value; drawAll(); });
+$("charts").addEventListener("click", (e) => {
+  const r = e.target.getBoundingClientRect(), W = e.target.width, fx = (e.clientX - r.left) / r.width * W;
+  const n = A().x.length; frame = Math.round(Math.min(Math.max((fx - 110) / (W - 126), 0), 1) * (n - 1)); drawAll();
+});
+$("scrub").max = A().x.length - 1;
+frame = Math.max(0, A().gf.findIndex((v) => v > 0) - 12);
+document.fonts.ready.then(drawAll);
+drawAll();
+</script>
